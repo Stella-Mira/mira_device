@@ -1,18 +1,18 @@
-# mira_input -- DSH "input" plugin (camera / mic / virtual capture) bundle patch
+# mira_device -- DSH "input" plugin (camera / mic / virtual capture) bundle patch
 #
 # ASCII only on purpose: the Loader reads this at startup and this machine's
 # console tooling mixes code pages (GBK vs UTF-8).
 #
 # This file is only the BASELINE. The authoritative config is
-#   $DSH_HOME/mira_config/mira_input/config.json
+#   $DSH_HOME/mira_config/mira_device/config.json
 # which the settings page ("Settings - Input") writes and which wins from then on.
 # Every default below is documented in README.md (config table). The Aliyun API
-# key is NOT here: it belongs to mira_audio (one credential for the whole trio).
+# key is NOT here: it belongs to mira_media (one credential for the whole trio).
 # On first start camera/mic/capture/vision/events are seeded from the old
 # muse_vtuber config if that file exists (see README "migration").
 - insert:
-    - id: mira_input
-      name: mira_input
+    - id: mira_device
+      name: mira_device
       config:
         enabled: true
         camera:

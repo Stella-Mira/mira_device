@@ -1,7 +1,7 @@
 {
-  "name": "mira_input",
-  "version": "1.0.0",
-  "description": "DSH「输入」插件：摄像头 / 麦克风 / 虚拟采集器（muse_galaxy 等）统一成一路输入，自动按 VAD 分段语音、按间隔自动推帧，并把识别结果插话进会话；提供 miraInput 服务与 input_* 工具，设置页「输入」，依赖 mira_audio",
+  "name": "mira_device",
+  "version": "2.0.0",
+  "description": "DSH「输入」插件：摄像头 / 麦克风 / 虚拟采集器（muse_galaxy 等）统一成一路输入，自动按 VAD 分段语音、按间隔自动推帧，并把识别结果插话进会话；提供 miraDevice 服务与 input_* 工具，设置页「输入」，依赖 mira_media",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -42,6 +42,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Stella-Mira/mira_input.git"
+    "url": "git+https://github.com/Stella-Mira/mira_device.git"
   }
 }

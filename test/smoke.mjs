@@ -1,5 +1,5 @@
 /**
- * mira_input / test/smoke.mjs —— 离线自检（不需要 DSH、不联网、不碰真 ~/.dsh）
+ * mira_device / test/smoke.mjs —— 离线自检（不需要 DSH、不联网、不碰真 ~/.dsh）
  *
  * 覆盖：
  *   A kit 副本一致 / B 配置规整与迁移 / C 状态仓库
@@ -180,14 +180,14 @@ function makeCtx({ audio = null, attachments = null, llm = null, agent = fakeAge
       }
     },
   }
-  if (audio) ctx.miraAudio = audio
+  if (audio) ctx.miraMedia = audio
   return ctx
 }
 
-/** 假 miraAudio：断句用真的 PcmSegmenter（与 mira_audio 同源），识别/识图是假的。 */
+/** 假 miraMedia：断句用真的 PcmSegmenter（与 mira_media 同源），识别/识图是假的。 */
 async function fakeAudio({ transcribeText = '大家好呀', visionText = '画面里有一个人', withVad = true } = {}) {
   const calls = { transcribe: 0, describeImage: 0 }
-  // 直接内联一个最小断句器：与 mira_audio 的语义一致（RMS + 静音 + 最短/最长）
+  // 直接内联一个最小断句器：与 mira_media 的语义一致（RMS + 静音 + 最短/最长）
   const makeSegmenter = ({ vad = {}, sampleRate = 16000, maxAudioMs = 30000, onUtterance = null } = {}) => {
     const seg = {
       sampleRate,
@@ -366,7 +366,7 @@ await t('B4 首次创建时从旧 muse_vtuber 配置迁移 camera/mic/capture/vi
   assert.equal(cfg.capture.fps, 5)
   assert.equal(cfg.vision.autoIntervalMs, 4000)
   assert.equal(cfg.events.maxPerMin, 9)
-  assert.equal(cfg.mic.vad, undefined, 'vad 属于 mira_audio，不该搬到这里')
+  assert.equal(cfg.mic.vad, undefined, 'vad 属于 mira_media，不该搬到这里')
 })
 
 /* ══════════════════════════════════════════════════════════
@@ -462,13 +462,13 @@ await t('D3 request ↔ result 配对；错误回执让 request reject', async (
   hub.dispose()
 })
 
-await t('D4 perceive：source.kind = mira_input，文本套模板后 steer', async () => {
+await t('D4 perceive：source.kind = mira_device，文本套模板后 steer', async () => {
   const { hub, agent } = makeHub()
   const result = await hub.perceive({ kind: 'voice', text: '你吃饭了吗', sessionId: 'sess-1', auto: true })
   assert.equal(result.delivered, true)
   const message = agent.steered[0]
   assert.equal(message.role, 'user')
-  assert.equal(message.source.kind, 'mira_input')
+  assert.equal(message.source.kind, 'mira_device')
   assert.equal(message.content[0].text, '[感知·语音] 你吃饭了吗')
   assert.equal(message.meta.percept, 'voice')
   hub.dispose()
@@ -688,7 +688,7 @@ await t('E7 status：每路流的帧数/PCM/断句数与令牌文件', async () 
     assert.equal(view.sources[0].frames, 1)
     assert.equal(view.selected.camera, opened.captureId)
     assert.ok(String(view.tokenFile).endsWith('capture.json'))
-    assert.equal(view.mjpeg, '/input/api/stream.mjpg')
+    assert.equal(view.mjpeg, '/device/api/stream.mjpg')
   } finally {
     env.captureHub.dispose()
     env.hub.dispose()
@@ -731,13 +731,13 @@ const captureHeaders = (env) => ({ authorization: 'Bearer ' + env.token.token })
 await t('F1 health / bootstrap：features.capture 齐全，bootstrap 带 vad 与依赖状态', async () => {
   const env = await makeHttpEnv()
   try {
-    const health = await call(env.handler, { url: '/input/api/health' })
+    const health = await call(env.handler, { url: '/device/api/health' })
     assert.equal(health.status, 200)
-    assert.equal(health.json.plugin, 'mira_input')
+    assert.equal(health.json.plugin, 'mira_device')
     assert.equal(health.json.features.capture.open, true)
     assert.equal(health.json.features.capture.stream, true)
     assert.equal(health.json.features.asr, true)
-    const boot = await call(env.handler, { url: '/input/api/bootstrap' })
+    const boot = await call(env.handler, { url: '/device/api/bootstrap' })
     assert.equal(boot.status, 200)
     assert.ok(boot.json.endpoints.events)
     assert.equal(boot.json.vad.silenceMs, 100)
@@ -752,12 +752,12 @@ await t('F1 health / bootstrap：features.capture 齐全，bootstrap 带 vad 与
 await t('F2 跨站请求 403；capture 口按令牌鉴权（无令牌 401、跨机 403、有令牌 200）', async () => {
   const env = await makeHttpEnv()
   try {
-    const bad = await call(env.handler, { url: '/input/api/bootstrap', headers: { origin: 'https://evil.example', host: '127.0.0.1:3080' } })
+    const bad = await call(env.handler, { url: '/device/api/bootstrap', headers: { origin: 'https://evil.example', host: '127.0.0.1:3080' } })
     assert.equal(bad.status, 403)
     assert.equal(bad.json.error.code, 'http/forbidden')
 
     const open = (headers) => call(env.handler, {
-      url: '/input/api/capture/open',
+      url: '/device/api/capture/open',
       method: 'POST',
       headers,
       body: { label: 'x', source: 'test:auth' },
@@ -767,7 +767,7 @@ await t('F2 跨站请求 403；capture 口按令牌鉴权（无令牌 401、跨�
     assert.equal(noToken.json.error.code, 'capture/unauthorized')
 
     const remote = await call(env.handler, {
-      url: '/input/api/capture/open',
+      url: '/device/api/capture/open',
       method: 'POST',
       headers: captureHeaders(env),
       body: { label: 'x', source: 'test:auth' },
@@ -788,7 +788,7 @@ await t('F3 state POST：落盘 + 广播；clientId 记成 client:<id>', async (
     const res = new FakeRes()
     env.hub.attach(new FakeReq({ headers: {} }), res)
     const out = await call(env.handler, {
-      url: '/input/api/state',
+      url: '/device/api/state',
       method: 'POST',
       body: { cameraOn: true, clientId: 'c-1' },
     })
@@ -807,7 +807,7 @@ await t('F4 POST /asr：auto:true 识别 + 插话；auto:false 只回文本', as
   const env = await makeHttpEnv()
   try {
     const auto = await call(env.handler, {
-      url: '/input/api/asr',
+      url: '/device/api/asr',
       method: 'POST',
       body: { base64: 'AAAA', mime: 'audio/wav', sessionId: 'sess-1', auto: true },
     })
@@ -816,7 +816,7 @@ await t('F4 POST /asr：auto:true 识别 + 插话；auto:false 只回文本', as
     assert.equal(auto.json.steered, true)
     assert.equal(env.agent.steered.length, 1)
     const manual = await call(env.handler, {
-      url: '/input/api/asr',
+      url: '/device/api/asr',
       method: 'POST',
       body: { base64: 'AAAA', mime: 'audio/wav', sessionId: 'sess-1', auto: false },
     })
@@ -828,14 +828,14 @@ await t('F4 POST /asr：auto:true 识别 + 插话；auto:false 只回文本', as
   }
 })
 
-await t('F5 POST /vision：auto:true 识图 + 插话（走 mira_audio 的网关能力）', async () => {
+await t('F5 POST /vision：auto:true 识图 + 插话（走 mira_media 的网关能力）', async () => {
   const env = await makeHttpEnv({
     config: { vision: { enabled: true, provider: 'aliyun' } },
     audioOptions: { visionText: '画面里有一台电脑' },
   })
   try {
     const out = await call(env.handler, {
-      url: '/input/api/vision',
+      url: '/device/api/vision',
       method: 'POST',
       body: { image: JPEG_1PX, sessionId: 'sess-1' },
     })
@@ -853,12 +853,12 @@ await t('F5 POST /vision：auto:true 识图 + 插话（走 mira_audio 的网关�
 await t('F6 settings：写回配置（没有 apiKey 字段，凭据只报状态）', async () => {
   const env = await makeHttpEnv()
   try {
-    const view = await call(env.handler, { url: '/input/api/settings' })
+    const view = await call(env.handler, { url: '/device/api/settings' })
     assert.equal(view.status, 200)
     assert.equal(view.json.keyConfigured, true)
     assert.equal(view.text.includes('sk-'), false)
     const saved = await call(env.handler, {
-      url: '/input/api/settings',
+      url: '/device/api/settings',
       method: 'POST',
       body: { values: { capture: { fps: 6 }, vision: { autoIntervalMs: 3000 }, events: { maxPerMin: 9 } }, apiKey: 'sk-should-be-ignored' },
     })
@@ -877,10 +877,10 @@ await t('F6 settings：写回配置（没有 apiKey 字段，凭据只报状态�
 await t('F7 未知接口 404；stream.mjpg 无采集时 503', async () => {
   const env = await makeHttpEnv()
   try {
-    const unknown = await call(env.handler, { url: '/input/api/nope' })
+    const unknown = await call(env.handler, { url: '/device/api/nope' })
     assert.equal(unknown.status, 404)
     assert.ok(String(unknown.json.error.hint).includes('bootstrap'))
-    const stream = await call(env.handler, { url: '/input/api/stream.mjpg' })
+    const stream = await call(env.handler, { url: '/device/api/stream.mjpg' })
     assert.equal(stream.status, 503)
   } finally {
     env.captureHub.dispose()
@@ -939,17 +939,17 @@ async function makeToolEnv({ config = {}, audioOptions, withClient = true, attac
 await t('G1 注册 5 个工具', async () => {
   const env = await makeToolEnv()
   assert.deepEqual([...env.registered.keys()].sort(), [...toolsMod.TOOL_NAMES].sort())
-  assert.equal(toolsMod.TOOL_NAMES.length, 5)
+  assert.equal(toolsMod.TOOL_NAMES.length, 6)
   env.dispose()
   env.captureHub.dispose()
   env.hub.dispose()
 })
 
-await t('G2 input_status：只读、带 capture/vad/audio/vision/events，不带 key', async () => {
+await t('G2 device_status：只读、带 capture/vad/audio/vision/events，不带 key', async () => {
   const env = await makeToolEnv()
-  const status = env.parse(await env.registered.get('input_status').execute({}, env.execFor()))
+  const status = env.parse(await env.registered.get('device_status').execute({}, env.execFor()))
   assert.equal(status.ok, true)
-  assert.equal(status.plugin, 'mira_input')
+  assert.equal(status.plugin, 'mira_device')
   assert.equal(status.vad.silenceMs, 100)
   assert.equal(status.capture.enabled, true)
   assert.equal(status.vision.provider, 'dsh')
@@ -959,14 +959,14 @@ await t('G2 input_status：只读、带 capture/vad/audio/vision/events，不带
   env.hub.dispose()
 })
 
-await t('G3 input_camera / input_mic：省略参数 = 切换，落状态并广播', async () => {
+await t('G3 device_camera / device_mic：省略参数 = 切换，落状态并广播', async () => {
   const env = await makeToolEnv()
-  const cam = env.parse(await env.registered.get('input_camera').execute({}, env.execFor()))
+  const cam = env.parse(await env.registered.get('device_camera').execute({}, env.execFor()))
   assert.equal(cam.cameraOn, true)
   assert.equal(env.stateStore.get().cameraOn, true)
-  const cam2 = env.parse(await env.registered.get('input_camera').execute({}, env.execFor()))
+  const cam2 = env.parse(await env.registered.get('device_camera').execute({}, env.execFor()))
   assert.equal(cam2.cameraOn, false)
-  const mic = env.parse(await env.registered.get('input_mic').execute({ on: true }, env.execFor()))
+  const mic = env.parse(await env.registered.get('device_mic').execute({ on: true }, env.execFor()))
   assert.equal(mic.micOn, true)
   assert.equal(env.stateStore.get().micOn, true)
   assert.ok(env.clientRes.text.includes('"type":"state"'))
@@ -975,13 +975,13 @@ await t('G3 input_camera / input_mic：省略参数 = 切换，落状态并广�
   env.hub.dispose()
 })
 
-await t('G4 input_look：摄像头没开 → camera/closed；没页面 → delivery/failed', async () => {
+await t('G4 device_look：摄像头没开 → camera/closed；没页面 → delivery/failed', async () => {
   const env = await makeToolEnv({ withClient: false })
-  const closed = await env.registered.get('input_look').execute({}, env.execFor())
+  const closed = await env.registered.get('device_look').execute({}, env.execFor())
   assert.equal(closed.ok, false)
   assert.equal(closed.error.code, 'camera/closed')
-  await env.registered.get('input_camera').execute({ on: true }, env.execFor())
-  const noPage = await env.registered.get('input_look').execute({}, env.execFor())
+  await env.registered.get('device_camera').execute({ on: true }, env.execFor())
+  const noPage = await env.registered.get('device_look').execute({}, env.execFor())
   assert.equal(noPage.ok, false)
   assert.equal(noPage.error.code, 'delivery/failed')
   env.dispose()
@@ -989,11 +989,11 @@ await t('G4 input_look：摄像头没开 → camera/closed；没页面 → deliv
   env.hub.dispose()
 })
 
-await t('G5 input_look（dsh，默认）：页面回帧 → 存附件 → render 出图片块', async () => {
+await t('G5 device_look（dsh，默认）：页面回帧 → 存附件 → render 出图片块', async () => {
   const attachments = fakeAttachments()
   const env = await makeToolEnv({ attachments })
-  await env.registered.get('input_camera').execute({ on: true }, env.execFor())
-  const pending = env.registered.get('input_look').execute({ prompt: '我桌上有几个杯子？' }, env.execFor())
+  await env.registered.get('device_camera').execute({ on: true }, env.execFor())
+  const pending = env.registered.get('device_look').execute({ prompt: '我桌上有几个杯子？' }, env.execFor())
   const frame = await env.takeCommand('look')
   assert.ok(frame, '应当收到 look 指令帧')
   env.hub.resolveResult({ requestId: frame.requestId, ok: true, value: { image: JPEG_1PX } })
@@ -1001,7 +1001,7 @@ await t('G5 input_look（dsh，默认）：页面回帧 → 存附件 → render
   assert.equal(value.ok, true)
   assert.equal(value.provider, 'dsh')
   assert.equal(attachments.saved.length, 1)
-  const blocks = env.registered.get('input_look').output.render({}, value)
+  const blocks = env.registered.get('device_look').output.render({}, value)
   assert.equal(blocks.length, 2)
   assert.equal(blocks[1].type, 'image')
   assert.equal(blocks[1].attachment.attachmentId, 'att-1')
@@ -1010,13 +1010,13 @@ await t('G5 input_look（dsh，默认）：页面回帧 → 存附件 → render
   env.hub.dispose()
 })
 
-await t('G6 input_look：采集器源直接用宿主缓存帧（不需要页面）', async () => {
+await t('G6 device_look：采集器源直接用宿主缓存帧（不需要页面）', async () => {
   const attachments = fakeAttachments()
   const env = await makeToolEnv({ attachments, withClient: false })
   env.stateStore.set({ cameraOn: true, cameraSource: 'galaxy' }, { by: 'test' })
   const opened = env.captureHub.open({ label: '缓存源', source: 'test:look', sessionId: 'sess-1' })
   env.captureHub.frame(opened.captureId, JPEG_1PX)
-  const value = await env.registered.get('input_look').execute({ prompt: '看到什么' }, env.execFor())
+  const value = await env.registered.get('device_look').execute({ prompt: '看到什么' }, env.execFor())
   assert.equal(value.ok, true)
   assert.equal(value.source.kind, 'capture')
   assert.equal(value.source.label, '缓存源')
@@ -1026,13 +1026,13 @@ await t('G6 input_look：采集器源直接用宿主缓存帧（不需要页面�
   env.hub.dispose()
 })
 
-await t('G7 input_listen：麦克风没开 → mic/closed；采集器源 → mic/external', async () => {
+await t('G7 device_listen：麦克风没开 → mic/closed；采集器源 → mic/external', async () => {
   const env = await makeToolEnv()
-  const closed = env.parse(await env.registered.get('input_listen').execute({}, env.execFor()))
+  const closed = env.parse(await env.registered.get('device_listen').execute({}, env.execFor()))
   assert.equal(closed.ok, false)
   assert.equal(closed.error.code, 'mic/closed')
   env.stateStore.set({ micOn: true, micSource: 'galaxy' }, { by: 'test' })
-  const external = env.parse(await env.registered.get('input_listen').execute({ seconds: 5 }, env.execFor()))
+  const external = env.parse(await env.registered.get('device_listen').execute({ seconds: 5 }, env.execFor()))
   assert.equal(external.ok, false)
   assert.equal(external.error.code, 'mic/external')
   env.dispose()
@@ -1040,10 +1040,10 @@ await t('G7 input_listen：麦克风没开 → mic/closed；采集器源 → mic
   env.hub.dispose()
 })
 
-await t('G8 input_listen：页面回音频 → 识别文本（秒数被夹到 30）', async () => {
+await t('G8 device_listen：页面回音频 → 识别文本（秒数被夹到 30）', async () => {
   const env = await makeToolEnv()
-  await env.registered.get('input_mic').execute({ on: true }, env.execFor())
-  const pending = env.registered.get('input_listen').execute({ seconds: 999 }, env.execFor())
+  await env.registered.get('device_mic').execute({ on: true }, env.execFor())
+  const pending = env.registered.get('device_listen').execute({ seconds: 999 }, env.execFor())
   const frame = await env.takeCommand('listen')
   assert.ok(frame)
   assert.equal(frame.payload.seconds, 30)
@@ -1062,18 +1062,18 @@ await t('G8 input_listen：页面回音频 → 识别文本（秒数被夹到 30
  * H. 入口装配 / 单实例 / 服务契约
  * ══════════════════════════════════════════════════════════ */
 
-await t('H1 apply：提供 miraInput 服务 + 5 个工具 + /input 路由', async () => {
+await t('H1 apply：提供 miraDevice 服务 + 6 个工具 + /device 路由', async () => {
   const audio = await fakeAudio()
   const ctx = makeCtx({ audio })
   try {
     const result = indexMod.apply(ctx, {})
     assert.equal(result.ok, true)
-    assert.equal(result.service, 'miraInput')
-    assert.equal(result.tools, 5)
-    assert.equal(ctx.registered.size, 5)
+    assert.equal(result.service, 'miraDevice')
+    assert.equal(result.tools, 6)
+    assert.equal(ctx.registered.size, 6)
     assert.equal(ctx.routes.length, 1)
-    assert.equal(ctx.routes[0].path, '/input')
-    const api = ctx.provided.get('miraInput')
+    assert.equal(ctx.routes[0].path, '/device')
+    const api = ctx.provided.get('miraDevice')
     assert.ok(api && typeof api.state === 'function' && typeof api.frame === 'function')
     assert.ok(typeof api.setSource === 'function')
     assert.equal(typeof api.status().plugin, 'string')
@@ -1125,14 +1125,14 @@ await t('H4 服务契约：frame / capture / streamUrl / percept / publicConfig'
   const ctx = makeCtx({ audio })
   try {
     indexMod.apply(ctx, {})
-    const api = ctx.provided.get('miraInput')
+    const api = ctx.provided.get('miraDevice')
     assert.equal(api.frame(), null, '没有采集器时没有帧')
-    assert.equal(api.streamUrl(), '/input/api/stream.mjpg')
+    assert.equal(api.streamUrl(), '/device/api/stream.mjpg')
     assert.equal(api.capture().enabled, true)
     assert.equal(api.publicConfig().vision.provider, 'dsh')
     const perceived = await api.percept({ kind: 'voice', text: '我说了一句', sessionId: 'sess-1', auto: true })
     assert.equal(perceived.delivered, true)
-    assert.equal(ctx.agent.steered[0].source.kind, 'mira_input')
+    assert.equal(ctx.agent.steered[0].source.kind, 'mira_device')
   } finally {
     ctx.dispose()
   }
