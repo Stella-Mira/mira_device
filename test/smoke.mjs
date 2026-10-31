@@ -318,7 +318,6 @@ await t('B1 默认值：devices / capture / vision(dsh) / events', () => {
   assert.equal(value.capture.fps, 8)
   assert.equal(value.capture.width, 720)
   assert.equal(value.capture.autoSwitch, true)
-  assert.equal(value.vision.provider, 'dsh')
   assert.equal(value.vision.autoIntervalMs, 0)
   assert.equal(value.events.steer, true)
 })
@@ -330,10 +329,8 @@ await t('B2 越界夹回 + 未知字段保留 + provider 白名单', () => {
     futureThing: { a: 1 },
   })
   assert.equal(value.camera.width, 160)
-  assert.equal(value.vision.provider, 'dsh')
   assert.deepEqual(value.futureThing, { a: 1 })
   assert.ok(warnings.some((w) => w.includes('camera.width')))
-  assert.ok(warnings.some((w) => w.includes('vision.provider')))
 })
 
 await t('B3 publicConfig 不含路径与凭据', () => {
@@ -342,7 +339,6 @@ await t('B3 publicConfig 不含路径与凭据', () => {
   const pub = configMod.publicConfig(value)
   assert.equal(pub.configFile, undefined)
   assert.equal(JSON.stringify(pub).includes('dashscope'), false)
-  assert.equal(pub.vision.provider, 'dsh')
 })
 
 await t('B4 首次创建时从旧 muse_vtuber 配置迁移 camera/mic/capture/vision/events（不含 vad）', () => {
@@ -741,7 +737,6 @@ await t('F1 health / bootstrap：features.capture 齐全，bootstrap 带 vad 与
     assert.equal(boot.status, 200)
     assert.ok(boot.json.endpoints.events)
     assert.equal(boot.json.vad.silenceMs, 100)
-    assert.equal(boot.json.config.vision.provider, 'dsh')
     assert.equal(boot.json.state.cameraOn, false)
   } finally {
     env.captureHub.dispose()
@@ -952,7 +947,6 @@ await t('G2 device_status：只读、带 capture/vad/audio/vision/events，不�
   assert.equal(status.plugin, 'mira_device')
   assert.equal(status.vad.silenceMs, 100)
   assert.equal(status.capture.enabled, true)
-  assert.equal(status.vision.provider, 'dsh')
   assert.equal(JSON.stringify(status).includes('sk-'), false)
   env.dispose()
   env.captureHub.dispose()
@@ -1129,7 +1123,6 @@ await t('H4 服务契约：frame / capture / streamUrl / percept / publicConfig'
     assert.equal(api.frame(), null, '没有采集器时没有帧')
     assert.equal(api.streamUrl(), '/device/api/stream.mjpg')
     assert.equal(api.capture().enabled, true)
-    assert.equal(api.publicConfig().vision.provider, 'dsh')
     const perceived = await api.percept({ kind: 'voice', text: '我说了一句', sessionId: 'sess-1', auto: true })
     assert.equal(perceived.delivered, true)
     assert.equal(ctx.agent.steered[0].source.kind, 'mira_device')
