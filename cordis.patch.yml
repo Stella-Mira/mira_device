@@ -1,0 +1,39 @@
+# mira_input -- DSH "input" plugin (camera / mic / virtual capture) bundle patch
+#
+# ASCII only on purpose: the Loader reads this at startup and this machine's
+# console tooling mixes code pages (GBK vs UTF-8).
+#
+# This file is only the BASELINE. The authoritative config is
+#   $DSH_HOME/mira_config/mira_input/config.json
+# which the settings page ("Settings - Input") writes and which wins from then on.
+# Every default below is documented in README.md (config table). The Aliyun API
+# key is NOT here: it belongs to mira_audio (one credential for the whole trio).
+# On first start camera/mic/capture/vision/events are seeded from the old
+# muse_vtuber config if that file exists (see README "migration").
+- insert:
+    - id: mira_input
+      name: mira_input
+      config:
+        enabled: true
+        camera:
+          enabled: true
+          width: 640
+          height: 480
+        mic:
+          enabled: true
+          sampleRate: 16000
+        capture:
+          enabled: true
+          fps: 8
+          width: 720
+          audio: true
+          autoSwitch: true
+        vision:
+          enabled: true
+          provider: dsh
+          base: 'https://token-plan.maas.qianwenaiapi.com/api/v1'
+          model: qwen3.8-flash
+          autoIntervalMs: 0
+        events:
+          enabled: true
+          steer: true
